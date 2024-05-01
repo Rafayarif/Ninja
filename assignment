@@ -1,0 +1,84 @@
+import random
+import requests
+
+# Function to generate random user data
+def generate_random_user():
+    user = {}
+    user['name'] = 'John Doe'  # Use Faker or similar library for real random data
+    user['age'] = random.randint(18, 60)
+    user['gender'] = random.choice(['Male', 'Female'])
+    user['interests'] = ['Sports', 'Music', 'Technology']  # Random interests
+    return user
+
+# Function to store user data
+def store_user_data(users):
+    with open('user_data.txt', 'w') as file:
+        for user in users:
+            file.write(str(user) + '\n')
+
+# Function to read user data
+def read_user_data():
+    with open('user_data.txt', 'r') as file:
+        return [eval(line.strip()) for line in file]
+
+# Function to authenticate with Snapchat's API
+def authenticate(username, password):
+    auth_url = "https://accounts.snapchat.com/accounts/oauth2/token"
+    payload = {
+        "grant_type": "password",
+        "username": username,
+        "password": password,
+        "scope": "https://adsapi.snapchat.com/oauth2/api/",
+        "client_id": "your_client_id",
+        "client_secret": "your_client_secret"
+    }
+    response = requests.post(auth_url, data=payload)
+    if response.status_code == 200:
+        return response.json()['access_token']
+    else:
+        print("Authentication failed.")
+        return None
+
+# Function to create or update audience segments
+def update_audience_segment(segment_name, user_data, access_token):
+    audience_url = "https://adsapi.snapchat.com/v1/audiences"
+    headers = {
+        "Authorization": f"Bearer {access_token}",
+        "Content-Type": "application/json"
+    }
+    payload = {
+        "name": segment_name,
+        "type": "SCHEMALESS",
+        "rule": {"operator": "AND", "rules": []},
+        "overwrite": True
+    }
+    for user in user_data:
+        payload['rule']['rules'].append({"key": "email", "operator": "EQUAL", "value": user.get('email', '')})
+        # You may need to map user data fields to Snapchat's expected format
+
+    response = requests.post(audience_url, headers=headers, json=payload)
+    if response.status_code == 200:
+        print(f"Audience segment {segment_name} created/updated successfully.")
+    else:
+        print("Failed to update audience segment.")
+
+# Main Function
+def main():
+    # Generate random user data
+    users = [generate_random_user() for _ in range(10)]
+    store_user_data(users)
+
+    # Read user data
+    user_data = read_user_data()
+
+    # Authenticate with Snapchat's API
+    username = "your_snapchat_username"
+    password = "your_snapchat_password"
+    access_token = authenticate(username, password)
+
+    if access_token:
+        segment_name = "Custom Segment"
+        update_audience_segment(segment_name, user_data, access_token)
+
+if __name__ == "__main__":
+    main()
